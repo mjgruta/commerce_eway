@@ -6,12 +6,12 @@
 function commerce_payment_eway_commerce_payment_method_info() {
   return array(
     'commerce_payment_eway' => array(
-      'title' => t('eWAY'),
+      'title' => t('eWAY Payment Gateway'),
+      'short_title' => t('eWAY'),
+      'display_title' => t('Credit card'),
       'description' => t('Provides integration with the eWAY payment gateway.'),
       'active' => TRUE,
-      'callbacks' => array(),
     ),
   );
-  return $payment_methods;
 }
 
