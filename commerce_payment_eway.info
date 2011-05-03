@@ -1,0 +1,7 @@
+name = Eway Payment Method
+description = Provides an Eway payment method.
+package = Commerce
+dependencies[] = commerce
+dependencies[] = commerce_payment
+core = 7.x
+files[] = commerce_payment_eway.module

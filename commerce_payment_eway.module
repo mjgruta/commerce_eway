@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * Implements hook_commerce_payment_method_info().
+ */
+function commerce_payment_eway_commerce_payment_method_info() {
+  return array(
+    'commerce_payment_eway' => array(
+      'title' => t('eWAY'),
+      'description' => t('Provides integration with the eWAY payment gateway.'),
+      'active' => TRUE,
+      'callbacks' => array(),
+    ),
+  );
+  return $payment_methods;
+}
+
