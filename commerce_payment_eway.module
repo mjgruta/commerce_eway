@@ -205,10 +205,9 @@ function _commerce_payment_eway_nusoap_path() {
 
 
 /**
- * Implements hook_menu().
+ * Payment method callback: checkout form.
  */
-function commerce_payment_eway_menu() {
-  $items = array();
-  return $items;
+function commerce_payment_eway_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
+  module_load_include('inc', 'commerce_payment', 'includes/commerce_payment.credit_card');
+  return commerce_payment_credit_card_form(array('code' => ''));
 }
-
