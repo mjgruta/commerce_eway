@@ -1,0 +1,56 @@
+<?php
+
+/**
+ * @file uc_eway.install
+ * The installation file for the uc_eway module
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function commerce_payment_eway_requirements($phase) {
+  $t = get_t();
+
+  // Make sure we have curl.
+  $has_curl = function_exists('curl_init');
+  $requirements['curl'] = array(
+    'title' => $t('cURL'),
+    'value' => $has_curl ? $t('Enabled') : $t('Not found'),
+  );
+  if (!$has_curl) {
+    $requirements['curl']['severity'] = REQUIREMENT_ERROR;
+    $requirements['curl']['description'] = $t("Eway requires the PHP <a href='!curl_url'>cURL</a> library.", array('!curl_url' => 'http://php.net/manual/en/curl.setup.php'));
+  }
+
+  // Make sure we have simplexml.
+  $has_simplexml = function_exists('simplexml_load_string');
+  $requirements['simplexml'] = array(
+    'title' => $t('SimpleXML'),
+    'value' => $has_simplexml ? $t('Enabled') : $t('Not found'),
+  );
+  if (!$has_simplexml) {
+    $requirements['simplexml']['severity'] = REQUIREMENT_ERROR;
+    $requirements['simplexml']['description'] = $t("Eway requires the SimpleXML library.");
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function commerce_payment_eway_uninstall() {
+  variable_del('commerce_payment_eway_customer_id');
+  variable_del('commerce_payment_eway_email_address');
+  variable_del('commerce_payment_eway_password');
+  variable_del('commerce_payment_eway_mode');
+  variable_del('commerce_payment_eway_change_order_status');
+  variable_del('commerce_payment_eway_show_fail_message');
+  variable_del('commerce_payment_eway_logo');
+  variable_del('commerce_payment_eway_recurring_enabled');
+  variable_del('commerce_payment_eway_recurring_nusoap_path');
+  variable_del('commerce_payment_eway_test_mode');
+  variable_del('commerce_payment_eway_test_approve_anyway');
+  variable_del('commerce_payment_eway_block_powered_by_size');
+  variable_del('commerce_payment_eway_block_powered_by_colour');
+}

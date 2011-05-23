@@ -1,6 +1,6 @@
 name = eWAY Payment Method
 description = Provides an eWAY payment method.
-package = Commerce (contrib)
+package = Commerce
 dependencies[] = commerce
 dependencies[] = commerce_ui
 dependencies[] = commerce_payment
