@@ -96,7 +96,7 @@ function commerce_payment_eway_settings_form($settings = NULL) {
     '#description' => t('eWAY mode used for processing orders. Options are detailed <a href="@url">here</a>.', array('@url' => 'http://www.eway.com.au/Developer/LinkingtoeWAY/overview.aspx')),
     '#options' => array(
       'merchant_xml' => t('Merchant Hosted (XML)'),
-      'cvn_xml' => t('CVN (XML)'),
+      'cvn_xml' => t('Merchant Hosted CVN (XML)'),
       'beagle' => t('Beagle Anti-Fraud'),
     ),
     '#default_value' => $settings['mode'],
@@ -496,7 +496,7 @@ function commerce_payment_eway_theme($existing, $type, $theme, $path) {
   return array (
     'commerce_payment_eway_transaction_description' => array(
       'variables' => array ('order'),
-      'file' => 'commerce_payment_eway.theme.inc',
+      'file' => 'includes/commerce_payment_eway.theme.inc',
     ),
   );
 }
