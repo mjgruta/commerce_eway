@@ -1,0 +1,136 @@
+<?php
+
+class eway_token extends eway_base {
+
+  function __construct($testing) {
+    // Currently a testing URL for the beagle mode does not exist.
+    // When one does, add the URL as per the options above.
+    $this->url = ($testing) ? 'https://www.eway.com.au/gateway/ManagedPaymentService/test/managedCreditCardPayment.asmx?WSDL' : 'https://www.eway.com.au/gateway/ManagedPaymentService/managedCreditCardPayment.asmx?WSDL';
+  }
+
+  function prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail) {
+    $this->testing = commerce_payment_eway_in_testing_mode($settings);
+    $this->log_to_watchdog = _commerce_payment_eway_log_to_watchdog($settings);
+    $this->customer_id = _commerce_payment_eway_get_data('customer_id', $settings);
+    $this->user_name = _commerce_payment_eway_get_data('user_name', $settings);
+    $this->password = _commerce_payment_eway_get_data('password', $settings);
+
+    $ManagedCustomerId = db_query ('select eway_id from {commerce_eway_token} where uid = :uid', array (':uid' => $uid))->fetchField();
+    if (!$ManagedCustomerId) {
+      $success = $this->new_managed_customer ($settings, $credit_card, $address, $uid, $mail);
+      if (!$success)
+        return; // Oops, couldn't store customer data
+    }
+    else
+      $this->ManagedCustomerId = $ManagedCustomerId;
+
+    $this->xml_data = array(
+      'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
+      'amount' => $charge['amount'],
+      'invoiceReference' => $order_id,
+      'invoiceDescription' => $description,
+    );
+  }
+
+  function process_request () {
+    if ($this->ManagedCustomerId)
+      $response = $this->soap_call('ProcessPayment', $this->xml_data);
+    else
+      $response = $this->last_response;
+    $this->return_info = array(
+      'eway_response' => $response,
+    );
+  }
+
+  /*
+   * Store customer data on eWAY server
+   */
+  protected function new_managed_customer ($settings, $credit_card, $address, $CustomerRef, $mail) {
+    // We must supply a first and last name, else call will fail
+    $first_name = $address['first_name']? $address['first_name'] : substr ($address['name_line'], 0, strpos ($address['name_line'], ' '));
+    if (!$first_name)
+      $first_name = $address['name_line'];
+    $last_name = $address['last_name']? $address['last_name'] : substr ($address['name_line'], strpos ($address['name_line'], ' ') + 1);
+    if (!$last_name)
+      $last_name = $address['name_line'];
+    $this->xml_data = array(
+      'Title' => 'Prof.', // TODO: Don't hard code this when there is a better way.
+      'FirstName' => $first_name,
+      'LastName' => $last_name,
+      'Address' => $address['thoroughfare'],
+      'Suburb' => $address['locality'],
+      'State' => $address['locality'],
+      'Company' => '',
+      'PostCode' => $address['postal_code'],
+      'Country' => strtolower($address['country']),
+      'CustomerRef' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_REF : $CustomerRef,
+      'Email' => $mail,
+      'Fax' => '',
+      'Phone' => '',
+      'Mobile' => '',
+      'JobDesc' => '',
+      'Comments' => '',
+      'URL' => '',
+      'CCNumber' => _commerce_payment_eway_get_data('cc_number', $settings, $credit_card['number']),
+      'CCNameOnCard' => $address['name_line'],
+      'CCExpiryMonth' => sprintf('%02d', $credit_card['exp_month']),
+      'CCExpiryYear' => substr($credit_card['exp_year'], -2),
+    );
+
+    $response = $this->soap_call('CreateCustomer', $this->xml_data);
+
+    if ($response['txStatus']) {
+      // Create new customer
+      $this->ManagedCustomerId = $response['CreateCustomerResult'];
+      db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
+    }
+    $this->last_response = $response;
+
+    return $response['txStatus'];
+  }
+
+   /**
+    * The actual SOAP call using the NuSOAP library.
+    */
+  protected function soap_call($operation, $params) {
+    $namespace = 'https://www.eway.com.au/gateway/managedpayment';
+    $endpoint = $this->url;
+
+    $header = '<eWAYHeader xmlns="' . $namespace . '">
+      <eWAYCustomerID>' . $this->customer_id . '</eWAYCustomerID>
+      <Username>' . $this->user_name  . '</Username>
+      <Password>' . $this->password  . '</Password>
+      </eWAYHeader>'; // TODO: replace with soapval
+
+    if (@include_once(_commerce_payment_eway_nusoap_path())) {
+      $client = new nusoap_client($endpoint, TRUE);
+      $client->response_timeout = 50;
+      $result = $client->call($operation, $params, $namespace, '', $header);
+    }
+    else {
+      $result = FALSE;
+    }
+
+    foreach ($params as $id => $key) {
+      if (in_array($id, array('CCNumber'))) {
+        // Don't log the CC number in plan text!
+        $params[$id] = '**** **** **** ' . substr ($params[$id], -4);
+      }
+    }
+    // Add a message to watchdog logs if in test mode to inform users of the
+    // unusual rounding of the amount values.
+    $test_mode_msg = $this->testing ? t('NOTE: The eWAY module is in test mode. In test mode the amount value will be rounded down to the nearest dollar, which will be zero for values less than 1 dollar.') : '';
+    if ($this->log_to_watchdog) {
+      watchdog('uc_eway', 'SOAP Call (%operation) request: %request, response: %response @test_mode_msg', array('%operation' => $operation, '%request' => var_export($params, TRUE), '%response' => var_export($result, TRUE), '@test_mode_msg' => $test_mode_msg));
+    }
+
+    if (isset ($result['faultcode'])) {
+      $result['txReturnNo'] = $result['faultcode'];
+      $ewayresult['txReturnDescription'] = $result['faultstring'];
+    }
+    $result['txStatus'] = !isset ($result['faultcode']);
+    return $result;
+  }
+
+}
+

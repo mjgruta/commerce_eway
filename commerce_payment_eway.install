@@ -1,8 +1,7 @@
 <?php
 
 /**
- * @file uc_eway.install
- * The installation file for the uc_eway module
+ * The installation file for the commerce_payment_eway module
  */
 
 /**
@@ -36,21 +35,26 @@ function commerce_payment_eway_requirements($phase) {
   return $requirements;
 }
 
-/**
- * Implements hook_uninstall().
- */
-function commerce_payment_eway_uninstall() {
-  variable_del('commerce_payment_eway_customer_id');
-  variable_del('commerce_payment_eway_email_address');
-  variable_del('commerce_payment_eway_password');
-  variable_del('commerce_payment_eway_mode');
-  variable_del('commerce_payment_eway_change_order_status');
-  variable_del('commerce_payment_eway_show_fail_message');
-  variable_del('commerce_payment_eway_logo');
-  variable_del('commerce_payment_eway_recurring_enabled');
-  variable_del('commerce_payment_eway_recurring_nusoap_path');
-  variable_del('commerce_payment_eway_test_mode');
-  variable_del('commerce_payment_eway_test_approve_anyway');
-  variable_del('commerce_payment_eway_block_powered_by_size');
-  variable_del('commerce_payment_eway_block_powered_by_colour');
+function commerce_payment_eway_schema() {
+  $schema = array();
+
+  $schema['commerce_eway_token'] = array(
+    'description' => 'Store customer tokens.',
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+        'description' => 'The {user}.uid.',
+      ),
+      'eway_id' => array(
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'description' => 'The eWAY ManagedCustomerID.',
+      ),
+    ),
+  );
+
+  return $schema;
 }

@@ -6,7 +6,6 @@
 define('COMMERCE_PAYMENT_EWAY_MODE_DEFAULT', 'cvn_xml');
 define('COMMERCE_PAYMENT_EWAY_LOGO_DEFAULT', 1);
 define('COMMERCE_PAYMENT_EWAY_CHANGE_ORDER_STATUS_DEFAULT', 1);
-define('COMMERCE_PAYMENT_EWAY_RECURRING_ENABLED_DEFAULT', 0);
 define('COMMERCE_PAYMENT_EWAY_SHOW_FAIL_MESSAGE_DEFAULT', 1);
 define('COMMERCE_PAYMENT_EWAY_TEST_MODE_DEFAULT', 0);
 define('COMMERCE_PAYMENT_EWAY_TEST_APPROVE_ANYWAY_DEFAULT', 0);
@@ -25,6 +24,12 @@ define('COMMERCE_PAYMENT_EWAY_TEST_CCNUMBER', '4444333322221111');
 define('COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_OFF', 0);
 define('COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_ALL', 1);
 define('COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_TEST', 2);
+
+/**
+ * Token payments
+ */
+define('COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID', '9876543211000');
+define('COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_REF', 'Test 123');
 
 
 /**
@@ -58,9 +63,6 @@ function commerce_payment_eway_settings_form($settings = NULL) {
     'status' => COMMERCE_PAYMENT_EWAY_CHANGE_ORDER_STATUS_DEFAULT,
     'show_fail_message' => COMMERCE_PAYMENT_EWAY_SHOW_FAIL_MESSAGE_DEFAULT,
     'logo' => COMMERCE_PAYMENT_EWAY_LOGO_DEFAULT,
-    'eway_recurring' => array (
-      'recurring_enabled' => COMMERCE_PAYMENT_EWAY_RECURRING_ENABLED_DEFAULT,
-    ),
     'eway_testing' => array (
       'test_mode' => COMMERCE_PAYMENT_EWAY_TEST_MODE_DEFAULT,
       'live_database' => '',
@@ -82,25 +84,38 @@ function commerce_payment_eway_settings_form($settings = NULL) {
     '#type' => 'textfield',
     '#title' => t('eWAY email login'),
     '#default_value' => $settings['email_address'],
-    '#description' => t('The email address you use to login to eWAY.'),
+    '#description' => t('If you are using token payments: the email address you use to login to eWAY.'),
   );
   $form['password'] = array(
     '#type' => 'textfield',
     '#title' => t('eWAY password'),
     '#default_value' => $settings['password'],
-    '#description' => t('The password you use to login to eWAY.'),
+    '#description' => t('If you are using token payments: the password you use to login to eWAY.'),
   );
+
+  // Token Payments require NuSOAP library
+  $status = file_exists(_commerce_payment_eway_nusoap_path());
+  $nusoap_msg = $status ? t('NuSOAP library found, token payments supported.') : t('NuSOAP library not found. Make sure that the <a href="@libraries_url">Libraries API module</a> is installed and the <a href="@nusoap_url">NuSOAP library</a> is installed in %libraries_dir', array('@libraries_url' => url('http://drupal.org/project/libraries'), '@nusoap_url' => url('http://sourceforge.net/projects/nusoap/'), '%libraries_dir' => 'sites/all/libraries/nusoap'));
+  $form['nusoap_status'] = array(
+    '#type' => 'markup',
+    '#markup' => $nusoap_msg,
+    '#prefix' => '<div>',
+    '#suffix' => '</div>',
+  );
+
   $form['mode'] = array(
     '#type' => 'select',
     '#title' => t('eWAY mode'),
-    '#description' => t('eWAY mode used for processing orders. Options are detailed <a href="@url">here</a>.', array('@url' => 'http://www.eway.com.au/Developer/LinkingtoeWAY/overview.aspx')),
+    '#description' => t('eWAY mode used for processing orders. Options are detailed <a href="@url">here</a>. Note that if token payments are selected, a token is created for every user selecting this payment option.', array('@url' => 'http://www.eway.com.au/Developer/LinkingtoeWAY/overview.aspx')),
     '#options' => array(
       'merchant_xml' => t('Merchant Hosted (XML)'),
       'cvn_xml' => t('Merchant Hosted CVN (XML)'),
       'beagle' => t('Beagle Anti-Fraud'),
+      'token' => t('Token Payments'),
     ),
     '#default_value' => $settings['mode'],
   );
+
   $form['status'] = array(
     '#type' => 'select',
     '#title' => t('Change order status to "Payment Received" upon successful transaction?'),
@@ -124,32 +139,9 @@ function commerce_payment_eway_settings_form($settings = NULL) {
     '#default_value' => $settings['logo'],
   );
 
-  // NuSOAP library status.
-  $status = file_exists(_commerce_payment_eway_nusoap_path());
-  $nusoap_msg = $status ? t('NuSOAP library found.') : t('NuSOAP library not found. Make sure that the <a href="@libraries_url">Libraries API module</a> is installed and the <a href="@nusoap_url">NuSOAP library</a> is installed in %libraries_dir', array('@libraries_url' => url('http://drupal.org/project/libraries'), '@nusoap_url' => url('http://sourceforge.net/projects/nusoap/'), '%libraries_dir' => 'sites/all/libraries/nusoap'));
-  $form['eway_recurring'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Recurring Billing settings'),
-    '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
-  );
-  $form['eway_recurring']['recurring_enabled'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Enable recurring billing support'),
-    '#description' => t('Enables support for recurring payments via <a href="@url">eWAY Token Payments</a>.', array('@url' => url('http://www.eway.com.au/Developer/eway-api/token-payments.aspx'))) . '<br />' . t('Note that this requires the NuSOAP library to be correctly installed and configured. See README.txt in the commerce_eway module directory for instructions.'),
-    '#default_value' => $settings['eway_recurring']['recurring_enabled'],
-    '#disabled' => (!$status && !$settings['eway_recurring']['recurring_enabled']),
-  );
-  $form['eway_recurring']['recurring_nusoap_status'] = array(
-    '#type' => 'markup',
-    '#markup' => $nusoap_msg,
-    '#prefix' => '<div>',
-    '#suffix' => '</div>',
-  );
-
   $form['eway_testing'] = array(
     '#type' => 'fieldset',
-    '#title' => t('eWAY Testing settings'),
+    '#title' => t('Testing'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   );
@@ -180,7 +172,7 @@ function commerce_payment_eway_settings_form($settings = NULL) {
 
   $form['eway_watchdog'] = array(
     '#type' => 'fieldset',
-    '#title' => t('eWAY Watchdog Logging'),
+    '#title' => t('Watchdog Logging'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   );
@@ -206,8 +198,8 @@ function commerce_payment_eway_settings_form($settings = NULL) {
 function commerce_payment_eway_settings_form_validate($form_id, &$form_state) {
   // TODO: function is not called; no clue how to do this check
   abc();
-  if ($form_state['values']['uc_eway_mode'] == 'beagle' && $form_state['values']['uc_eway_test_mode'] == 1) {
-    form_set_error('uc_eway_test_mode', t('The eWAY mode %beagle is currently incompatible with testing.', array('%beagle' => 'Beagle Anti-Fraud')));
+  if ($form_state['values']['eway_mode'] == 'beagle' && $form_state['values']['test_mode'] == 1) {
+    form_set_error('test_mode', t('The eWAY mode %beagle is currently incompatible with testing.', array('%beagle' => 'Beagle Anti-Fraud')));
   }
 }
 
@@ -253,67 +245,25 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
   // which is ridiculously long anyway.
   $description = substr($description, 0, 10000);
 
-  $total = $order->commerce_order_total['und'][0];
   $profile_id = $order->commerce_customer_billing['und'][0]['profile_id'];
   $profile = commerce_customer_profile_load ($profile_id);
   $address = $profile->commerce_customer_address['und'][0];
 
-  // Concatenate the customer address to send to the payment gateway.
-  $customer_address_countrycode = $address['country'];
+  // Display a message to the user about test mode if necessary.
+  _commerce_payment_eway_display_test_mode_msg($settings);
 
-  $customer_address = $address['thoroughfare'] . ' ';
-  $customer_address = $address['dependent_locality'] . ' ';
-  $customer_address .= $address['locality'] . ' ';
-  $customer_address .= $customer_address_countrycode;
-
-  $xml_data = array(
-    'ewayCustomerID' => _commerce_payment_eway_get_data('customer_id', $settings),
-    'ewayTotalAmount' => $charge['amount'],
-    'ewayCustomerFirstName' => $address['first_name'],
-    'ewayCustomerLastName' => $address['last_name'],
-    'ewayCustomerEmail' => $order->mail,
-    'ewayCustomerAddress' => $customer_address,
-    'ewayCustomerPostcode' => $address['postal_code'],
-    'ewayCustomerInvoiceDescription' => $description,
-    'ewayCustomerInvoiceRef' => $order->order_id,
-    'ewayCardHoldersName' => $address['name_line'],
-    'ewayCardNumber' => _commerce_payment_eway_get_data('cc_number', $settings, $credit_card['number']),
-    'ewayCardExpiryMonth' => $credit_card['exp_month'],
-    'ewayCardExpiryYear' => $credit_card['exp_year'],
-    'ewayTrxnNumber' => '',
-    'ewayOption1' => '',
-    'ewayOption2' => '',
-    'ewayOption3' => '',
-  );
-
+  $mode = _commerce_payment_eway_get_data('mode', $settings);
+  module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_base');
+  module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_xml_common');
+  module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_' . $mode);
+  $class_name = 'eway_' . $mode;
   $eway_testing = commerce_payment_eway_in_testing_mode($settings);
-  switch (_commerce_payment_eway_get_data('commerce_eway_mode', $settings)) {
-    case 'merchant_xml':
-      $url = ($eway_testing) ? 'https://www.eway.com.au/gateway/xmltest/testpage.asp' : 'https://www.eway.com.au/gateway/xmlpayment.asp';
-      break;
-    case 'cvn_xml':
-      $url = ($eway_testing) ? 'https://www.eway.com.au/gateway_cvn/xmltest/testpage.asp' : 'https://www.eway.com.au/gateway_cvn/xmlpayment.asp';
-      $xml_data['ewayCVN'] = $credit_card['code'];
-      break;
-    case 'beagle':
-      // Currently a testing URL for the beagle mode does not exist.
-      // When one does, add the URL as per the options above.
-      $url = 'https://www.eway.com.au/gateway_cvn/xmlbeagle.asp';
-      $xml_data['ewayCVN'] = $credit_card['code'];
-      $xml_data['ewayCustomerIPAddress'] = $_SERVER['REMOTE_ADDR'];
-      $xml_data['ewayCustomerBillingCountry'] = $customer_address_countrycode;
-      break;
-  }
+  $processor = new $class_name($eway_testing);
+  $processor->charge ($settings, $description, $charge, $credit_card, $address, $order->order_id, $order->uid, $order->mail);
 
-  $xmlstring = '<ewaygateway>';
-  foreach ($xml_data as $key => $value) {
-    $xmlstring .= '<' . $key . '>' . htmlspecialchars(trim($value), ENT_QUOTES, 'UTF-8') . '</' . $key . '>';
-  }
-  $xmlstring .= '</ewaygateway>';
+  $return_info = $processor->return_info;
 
-  $return_info = commerce_payment_eway_process_request($xmlstring, $url);
-
-  // $return_info might be FALSE if commerce_eway_process_request() failed.
+  // $return_info might be FALSE if request() failed.
   if (!empty($return_info) && array_key_exists('txStatus', $return_info['eway_response'])) {
     // Prepare a transaction object to log the API response.
     $transaction = commerce_payment_transaction_new('commerce_payment_eway', $order->order_id);
@@ -333,12 +283,10 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
           'uid' => $user->uid,
           'data' => $return_info['eway_response'],
         );
-        if (variable_get('commerce_eway_test_approve_anyway', COMMERCE_EWAY_TEST_APPROVE_ANYWAY) && variable_get('commerce_eway_test_mode', COMMERCE_EWAY_TEST_MODE)) {
+        if ($settings['eway_testing']['test_approve_anyway'] && $eway_testing)
           $result['success'] = TRUE;
-        }
-        if (variable_get('commerce_eway_show_fail_message', COMMERCE_EWAY_SHOW_FAIL_MESSAGE_DEFAULT)) {
+        if ($settings['show_fail_message'])
           drupal_set_message($result['message'], 'error');
-        }
         $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
         $transaction->message = $result['comment'];
         commerce_payment_transaction_save($transaction);
@@ -360,55 +308,6 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
   }
 
   return $result;
-}
-
-/**
- * Actually send the request to eway.
- */
-function commerce_payment_eway_process_request($xml, $url) {
-  $curl_connection = curl_init();
-  curl_setopt($curl_connection, CURLOPT_URL, $url);
-  curl_setopt($curl_connection, CURLOPT_VERBOSE, 1);
-  curl_setopt($curl_connection, CURLOPT_POST, 1);
-  curl_setopt($curl_connection, CURLOPT_POSTFIELDS, $xml);
-  curl_setopt($curl_connection, CURLOPT_RETURNTRANSFER, 1);
-  curl_setopt($curl_connection, CURLOPT_SSL_VERIFYPEER, 0);
-  curl_setopt($curl_connection, CURLOPT_NOPROGRESS, 1);
-  curl_setopt($curl_connection, CURLOPT_FOLLOWLOCATION, 0);
-
-  // Display a message to the user about test mode if necessary.
-  _commerce_payment_eway_display_test_mode_msg();
-
-  // Send the data out over the wire
-  $data = curl_exec($curl_connection);
-  if (curl_errno($curl_connection)) {
-    drupal_set_message(t('CURL Error') . ': ' . curl_errno($curl_connection) . '<br />' . curl_error($curl_connection));
-    return FALSE;
-  }
-  else {
-    curl_close($curl_connection);
-
-    $xtr = simplexml_load_string($data);
-    $response_details = explode(',', $xtr->ewayTrxnError);
-
-    $eway_response['txReturnNo'] = $response_details[0];
-    $eway_response['txReturnDescription'] = $response_details[1];
-    $eway_response['txStatus'] = strtolower($xtr->ewayTrxnStatus);
-    $eway_response['txTransactionNumber'] = $xtr->ewayTrxnNumber;
-    $eway_response['txOption1'] = $xtr->ewayTrxnOption1;
-    $eway_response['txOption2'] = $xtr->ewayTrxnOption2;
-    $eway_response['txOption3'] = $xtr->ewayTrxnOption3;
-    $eway_response['txAmount'] = $xtr->ewayReturnAmount;
-    $eway_response['txAuthCode'] = $xtr->ewayAuthCode;
-    $eway_response['txInvoiceReference'] = $xtr->ewayTrxnReference;
-
-    $return_array = array(
-      'curl_worked' => 'true',
-      'eway_response' => $eway_response,
-    );
-
-    return $return_array;
-  }
 }
 
 
@@ -435,8 +334,8 @@ function _commerce_payment_eway_get_data($key, $settings, $value = '') {
     case 'password':
       $return_val = $eway_testing ? COMMERCE_PAYMENT_EWAY_TEST_PASSWORD : $settings['password'];
       break;
-    case 'commerce_eway_mode':
-      $return_val = $eway_testing ? COMMERCE_PAYMENT_EWAY_MODE_DEFAULT : $settings['mode'];
+    case 'mode':
+      $return_val = $settings['mode'];
       break;
     case 'cc_number':
       $return_val = $eway_testing ? COMMERCE_PAYMENT_EWAY_TEST_CCNUMBER : $value;
@@ -466,12 +365,12 @@ function _commerce_payment_eway_nusoap_path() {
 /**
  * Helper function to determine whether or not to log messages to watchdog.
  */
-function _commerce_payment_eway_log_to_watchdog() {
-  $status = variable_get('commerce_eway_watchdog_status', COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_ALL);
+function _commerce_payment_eway_log_to_watchdog($settings) {
+  $status = $settings['eway_watchdog']['watchdog_status'];
   if ($status == COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_ALL) {
     return TRUE;
   }
-  if ($status == COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_TEST && variable_get('commerce_eway_test_mode', COMMERCE_PAYMENT_EWAY_TEST_MODE_DEFAULT)) {
+  if ($status == COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_TEST && commerce_payment_eway_in_testing_mode($settings)) {
     return TRUE;
   }
   return FALSE;
@@ -482,8 +381,8 @@ function _commerce_payment_eway_log_to_watchdog() {
  * Helper function to display a message to the user when payments to eWAY are
  * done while in test mode.
  */
-function _commerce_payment_eway_display_test_mode_msg() {
-  if (variable_get('commerce_eway_test_mode', COMMERCE_PAYMENT_EWAY_TEST_MODE_DEFAULT) && variable_get('commerce_eway_test_mode_display_msg', 1)) {
+function _commerce_payment_eway_display_test_mode_msg($settings) {
+  if (commerce_payment_eway_in_testing_mode ($settings) && $settings['eway_testing']['test_mode_display_msg']) {
     drupal_set_message(t('The Drupal Commerce eWAY payment gateway is currently in test mode.'), 'warning', FALSE);
   }
 }
