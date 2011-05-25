@@ -260,6 +260,21 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
   $eway_testing = commerce_payment_eway_in_testing_mode($settings);
   $processor = new $class_name($eway_testing);
   $processor->charge ($settings, $description, $charge, $credit_card, $address, $order->order_id, $order->uid, $order->mail);
+  if ($processor->unsaved_customer_data) {
+    // Keep track of unsaved customer data as we can only save this when the
+    //account is created. Obviously this means we store the credit card
+    // details on the server for a short while, big oops.
+    // You'll need to add an action to the "Create a new account for an
+    // anonymous order" and "Assign an anonymous order to a pre-existing user"
+    // rule to enable token billing
+    $_SESSION['eway_customer_data'] = $processor->unsaved_customer_data;
+    $_SESSION['eway_login'] = array (
+      'log_to_watchdog' => $processor->log_to_watchdog,
+      'customer_id' => $processor->customer_id,
+      'user_name' => $processor->user_name,
+      'password' => $processor->password,
+    );
+  }
 
   $return_info = $processor->return_info;
 
@@ -275,31 +290,18 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
     $transaction->payload = print_r ($return_info, true);
     switch ($return_info['eway_response']['txStatus']) {
       case 'false':
-        $message = t('Credit card declined: !amount', array('!amount' => commerce_currency_format($charge['amount'], $charge['currency_code'])));
-        $result = array(
-          'success' => FALSE,
-          'comment' => t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'],
-          'message' => t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'],
-          'uid' => $user->uid,
-          'data' => $return_info['eway_response'],
-        );
+        $comment = t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'];
+        if ($settings['show_fail_message']) {
+          $message = t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'];
+          drupal_set_message($message, 'error');
+        }
         if ($settings['eway_testing']['test_approve_anyway'] && $eway_testing)
-          $result['success'] = TRUE;
-        if ($settings['show_fail_message'])
-          drupal_set_message($result['message'], 'error');
-        $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
-        $transaction->message = $result['comment'];
-        commerce_payment_transaction_save($transaction);
+          $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+        else
+          $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
         break;
       case 'true':
-        $message = t('Credit card charged: !amount', array('!amount' => commerce_currency_format($charge['amount'], $charge['currency_code'])));
-        $result = array(
-          'success' => TRUE,
-          'comment' => t('Credit card payment processed successfully') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'],
-          'message' => t('Credit card payment processed successfully') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'],
-          'uid' => $user->uid,
-          'data' => $return_info['eway_response'],
-        );
+        $comment = t('Credit card payment processed successfully') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'];
         $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
         break;
     }
@@ -307,7 +309,7 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
     commerce_payment_transaction_save($transaction);
   }
 
-  return $result;
+  return $transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS;
 }
 
 

@@ -8,7 +8,7 @@ class eway_token extends eway_base {
     $this->url = ($testing) ? 'https://www.eway.com.au/gateway/ManagedPaymentService/test/managedCreditCardPayment.asmx?WSDL' : 'https://www.eway.com.au/gateway/ManagedPaymentService/managedCreditCardPayment.asmx?WSDL';
   }
 
-  function prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail) {
+  protected function prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail) {
     $this->testing = commerce_payment_eway_in_testing_mode($settings);
     $this->log_to_watchdog = _commerce_payment_eway_log_to_watchdog($settings);
     $this->customer_id = _commerce_payment_eway_get_data('customer_id', $settings);
@@ -17,26 +17,44 @@ class eway_token extends eway_base {
 
     $ManagedCustomerId = db_query ('select eway_id from {commerce_eway_token} where uid = :uid', array (':uid' => $uid))->fetchField();
     if (!$ManagedCustomerId) {
+      $this->ManagedCustomerId = 0;
+      // If user is logged in, we can register details.
+      // Else user will only be created much later, so we cannot use
+      // token billing at this time.
       $success = $this->new_managed_customer ($settings, $credit_card, $address, $uid, $mail);
-      if (!$success)
-        return; // Oops, couldn't store customer data
     }
     else
       $this->ManagedCustomerId = $ManagedCustomerId;
 
-    $this->xml_data = array(
-      'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
-      'amount' => $charge['amount'],
-      'invoiceReference' => $order_id,
-      'invoiceDescription' => $description,
-    );
+    if ($this->ManagedCustomerId) {
+      unset ($this->cvn_processor);
+      $this->xml_data = array(
+        'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
+        'amount' => $charge['amount'],
+        'invoiceReference' => $order_id,
+        'invoiceDescription' => $description,
+      );
+    }
+    else {
+      module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_cvn_xml');
+      $this->cvn_processor = new eway_cvn_xml ($this->testing);
+      $this->cvn_processor->prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail);
+    }
   }
 
-  function process_request () {
-    if ($this->ManagedCustomerId)
-      $response = $this->soap_call('ProcessPayment', $this->xml_data);
-    else
-      $response = $this->last_response;
+  protected function process_request () {
+    if ($this->cvn_processor) {
+      // If cvn processor set, we could not register customer details,
+      // so use "traditional" processing.
+      $this->cvn_processor->process_request();
+      $response = $this->cvn_processor->return_info['eway_response'];
+    }
+    else {
+      if ($this->ManagedCustomerId)
+        $response = $this->soap_call('ProcessPayment', $this->xml_data);
+      else
+        $response = $this->last_response;
+    }
     $this->return_info = array(
       'eway_response' => $response,
     );
@@ -77,15 +95,41 @@ class eway_token extends eway_base {
       'CCExpiryYear' => substr($credit_card['exp_year'], -2),
     );
 
-    $response = $this->soap_call('CreateCustomer', $this->xml_data);
-
-    if ($response['txStatus']) {
-      // Create new customer
-      $this->ManagedCustomerId = $response['CreateCustomerResult'];
-      db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
+    if ($CustomerRef) {
+      $this->create_customer ($this->xml_data['CustomerRef'], $this->xml_data);
+      $response = $this->last_response;
     }
+
+    if (!$CustomerRef || !$response['txStatus']) {
+      $this->unsaved_customer_data = $this->xml_data;
+      $response['txStatus'] = true;
+    }
+
     $this->last_response = $response;
 
+    return $response['txStatus'];
+  }
+
+  /*
+   * If user is not registered, we can only store token until user has
+   * been registered. We keep track of the request, and once user has
+   * been registered, this function can be used to actually save user
+   * data.
+   */
+  function create_customer ($CustomerRef, $customer_data) {
+    $customer_data['CustomerRef'] = $CustomerRef;
+    $response = $this->soap_call('CreateCustomer', $customer_data);
+
+    if ($response['txStatus']) {
+      $this->ManagedCustomerId = $response['CreateCustomerResult'];
+      db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
+      $this->unsaved_customer_data = false;
+      if ($this->log_to_watchdog) {
+        watchdog('commerce_payment_eway', 'User %uid setup for token billing', array('%uid' => $CustomerRef));
+      }
+    }
+
+    $this->last_response = $response;
     return $response['txStatus'];
   }
 
@@ -121,7 +165,7 @@ class eway_token extends eway_base {
     // unusual rounding of the amount values.
     $test_mode_msg = $this->testing ? t('NOTE: The eWAY module is in test mode. In test mode the amount value will be rounded down to the nearest dollar, which will be zero for values less than 1 dollar.') : '';
     if ($this->log_to_watchdog) {
-      watchdog('uc_eway', 'SOAP Call (%operation) request: %request, response: %response @test_mode_msg', array('%operation' => $operation, '%request' => var_export($params, TRUE), '%response' => var_export($result, TRUE), '@test_mode_msg' => $test_mode_msg));
+      watchdog('commerce_payment_eway', 'SOAP Call (%operation) request: %request, response: %response @test_mode_msg', array('%operation' => $operation, '%request' => var_export($params, TRUE), '%response' => var_export($result, TRUE), '@test_mode_msg' => $test_mode_msg));
     }
 
     if (isset ($result['faultcode'])) {

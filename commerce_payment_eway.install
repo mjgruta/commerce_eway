@@ -54,6 +54,7 @@ function commerce_payment_eway_schema() {
         'description' => 'The eWAY ManagedCustomerID.',
       ),
     ),
+    'primary key' => array('uid'),
   );
 
   return $schema;
