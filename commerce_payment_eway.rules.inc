@@ -45,5 +45,6 @@ function commerce_payment_eway_create_customer($account) {
     // Don't care if this fails
     $success = $processor->create_customer ($account->uid, $customer_data);
     unset ($_SESSION['eway_customer_data']);
+    unset ($_SESSION['eway_login']);
   }
 }
