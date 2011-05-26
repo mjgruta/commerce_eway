@@ -59,7 +59,6 @@ function commerce_payment_eway_create_customer ($account) {
  * If token billing is setup, pay for order.
  */
 function commerce_payment_eway_process_payment ($order) {
-  var_dump ($order);
   $ManagedCustomerId = db_query ('select eway_id from {commerce_eway_token} where uid = :uid', array (':uid' => $order->uid))->fetchField();
   if ($ManagedCustomerId) {
 
