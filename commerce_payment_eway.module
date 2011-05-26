@@ -267,12 +267,7 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
     // anonymous order" and "Assign an anonymous order to a pre-existing user"
     // rule to enable token billing
     $_SESSION['eway_customer_data'] = $processor->unsaved_customer_data;
-    $_SESSION['eway_login'] = array (
-      'log_to_watchdog' => $processor->log_to_watchdog,
-      'customer_id' => $processor->customer_id,
-      'user_name' => $processor->user_name,
-      'password' => $processor->password,
-    );
+    $_SESSION['eway_settings'] = $settings;
   }
 
   $transaction = _commerce_payment_eway_save_transaction ($settings, $order, $charge, $processor->return_info, $payment_method['instance_id']);
@@ -320,6 +315,13 @@ function _commerce_payment_eway_save_transaction ($settings, $order, $charge, $r
   return $transaction;
 }
 
+
+/*
+ * Delete user data when user is deleted
+ */
+function commerce_payment_eway_user_delete ($account) {
+  db_delete ('commerce_eway_token')->condition ('uid', $account->uid)->execute();
+}
 
 /**
  * Helper function to get data, do checking if it's in test mode.

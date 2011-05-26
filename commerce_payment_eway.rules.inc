@@ -42,19 +42,15 @@ function commerce_payment_eway_rules_action_info() {
 function commerce_payment_eway_create_customer ($account) {
   if (isset ($_SESSION['eway_customer_data'])) {
     $customer_data = $_SESSION['eway_customer_data'];
-    $settings = $_SESSION['eway_login'];
+    $settings = $_SESSION['eway_settings'];
     $testing = $customer_data['CCNumber'] == COMMERCE_PAYMENT_EWAY_TEST_CCNUMBER;
     module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_base');
     module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_token');
-    $processor = new eway_token ($testing);
-    $processor->log_to_watchdog = $settings['log_to_watchdog'];
-    $processor->customer_id = $settings['customer_id'];
-    $processor->user_name = $settings['user_name'];
-    $processor->password = $settings['password'];
+    $processor = new eway_token ($settings);
     // Don't care if this fails
     $success = $processor->create_customer ($account->uid, $customer_data);
     unset ($_SESSION['eway_customer_data']);
-    unset ($_SESSION['eway_login']);
+    unset ($_SESSION['eway_settings']);
   }
 }
 

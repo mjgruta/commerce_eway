@@ -1,6 +1,15 @@
-------------------
+------
+Status
+------
+
+1. Beagle method not tested, copied from Ubercart Beagle.
+
+2. Code doesn't feel as clean as it could be.
+
+
+--------------
 Token billling
-------------------
+--------------
 
 1. Use of recurring billing (ReBill) requires the NuSOAP library available at http://sourceforge.net/projects/nusoap/
    a. Install the Libraries API module (http://drupal.org/project/libraries)
@@ -13,4 +22,5 @@ Token billling
 
 3. Add the "Setup for eWAY token billing" action to the "Create a new
    account for an anonymous order" and "Assign an anonymous order
-   rules.
+   rules. Logged in users will be set up automatically for token
+   billing without needing any rules.

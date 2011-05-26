@@ -32,7 +32,7 @@ class eway_token extends eway_base {
     }
     else {
       module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_cvn_xml');
-      $this->cvn_processor = new eway_cvn_xml ($this->testing);
+      $this->cvn_processor = new eway_cvn_xml ($settings);
       $this->cvn_processor->prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail);
     }
   }
@@ -194,12 +194,20 @@ class eway_token extends eway_base {
         'txReturnDescription' => (string) $result['faultstring'],
       );
     }
-    else {
+    elseif (isset ($result['ewayResponse'])) {
       $response = array (
         'txStatus' => 'true',
         'txReturnNo' => 0,
         'txReturnDescription' => (string) $result['ewayResponse']['ewayTrxnError'],
         'txTransactionNumber' => (string) $result['ewayResponse']['ewayTrxnNumber'],
+      );
+    }
+    else {
+      $response = $result + array (
+        'txStatus' => 'true',
+        'txReturnNo' => 0,
+        'txReturnDescription' => '',
+        'txTransactionNumber' => '',
       );
     }
     return $response;
