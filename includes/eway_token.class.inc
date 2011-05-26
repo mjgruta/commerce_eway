@@ -2,19 +2,14 @@
 
 class eway_token extends eway_base {
 
-  function __construct($testing) {
+  function __construct($settings) {
+    parent::__construct($settings);
     // Currently a testing URL for the beagle mode does not exist.
     // When one does, add the URL as per the options above.
-    $this->url = ($testing) ? 'https://www.eway.com.au/gateway/ManagedPaymentService/test/managedCreditCardPayment.asmx?WSDL' : 'https://www.eway.com.au/gateway/ManagedPaymentService/managedCreditCardPayment.asmx?WSDL';
+    $this->url = ($this->testing) ? 'https://www.eway.com.au/gateway/ManagedPaymentService/test/managedCreditCardPayment.asmx?WSDL' : 'https://www.eway.com.au/gateway/ManagedPaymentService/managedCreditCardPayment.asmx?WSDL';
   }
 
   protected function prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail) {
-    $this->testing = commerce_payment_eway_in_testing_mode($settings);
-    $this->log_to_watchdog = _commerce_payment_eway_log_to_watchdog($settings);
-    $this->customer_id = _commerce_payment_eway_get_data('customer_id', $settings);
-    $this->user_name = _commerce_payment_eway_get_data('user_name', $settings);
-    $this->password = _commerce_payment_eway_get_data('password', $settings);
-
     $ManagedCustomerId = db_query ('select eway_id from {commerce_eway_token} where uid = :uid', array (':uid' => $uid))->fetchField();
     if (!$ManagedCustomerId) {
       $this->ManagedCustomerId = 0;
@@ -30,7 +25,7 @@ class eway_token extends eway_base {
       unset ($this->cvn_processor);
       $this->xml_data = array(
         'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
-        'amount' => $charge['amount'],
+        'amount' => intval ($charge['amount'] * 100),
         'invoiceReference' => $order_id,
         'invoiceDescription' => $description,
       );
@@ -42,6 +37,11 @@ class eway_token extends eway_base {
     }
   }
 
+  /*
+   * Pay via the CVN processor, or use token billing if setup.
+   * Call process_payment if you are sure the person has been setup
+   * for token billing.
+   */
   protected function process_request () {
     if (isset ($this->cvn_processor)) {
       // If cvn processor set, we could not register customer details,
@@ -133,9 +133,25 @@ class eway_token extends eway_base {
     return $response['txStatus'];
   }
 
-   /**
-    * The actual SOAP call using the NuSOAP library.
-    */
+  /*
+   * Token billing.
+   */
+  function process_payment ($ManagedCustomerId, $amount, $invoice_reference, $description) {
+    $this->xml_data = array(
+      'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
+      'amount' => intval ($amount * 100),
+      'invoiceReference' => $invoice_reference,
+      'invoiceDescription' => $description,
+      );
+    $response = $this->soap_call('ProcessPayment', $this->xml_data);
+    $this->return_info = array(
+      'eway_response' => $response,
+    );
+  }
+
+  /**
+   * The actual SOAP call using the NuSOAP library.
+   */
   protected function soap_call($operation, $params) {
     $namespace = 'https://www.eway.com.au/gateway/managedpayment';
     $endpoint = $this->url;

@@ -2,10 +2,10 @@
 
 class eway_cvn_xml extends eway_xml_common {
 
-   function __construct($testing) {
+   function __construct($settings) {
       // Currently a testing URL for the beagle mode does not exist.
       // When one does, add the URL as per the options above.
-     parent::__construct($testing);
+     parent::__construct($settings);
      $this->url = 'https://www.eway.com.au/gateway_cvn/xmlbeagle.asp';
    }
 
