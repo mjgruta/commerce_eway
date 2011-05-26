@@ -1,6 +1,6 @@
 <?php
 
-class eway_cvn_xml extends eway_xml_common {
+class eway_beagle extends eway_xml_common {
 
    function __construct($settings) {
       // Currently a testing URL for the beagle mode does not exist.
