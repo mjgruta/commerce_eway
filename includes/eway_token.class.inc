@@ -43,7 +43,7 @@ class eway_token extends eway_base {
   }
 
   protected function process_request () {
-    if ($this->cvn_processor) {
+    if (isset ($this->cvn_processor)) {
       // If cvn processor set, we could not register customer details,
       // so use "traditional" processing.
       $this->cvn_processor->process_request();
@@ -81,7 +81,7 @@ class eway_token extends eway_base {
       'Company' => '',
       'PostCode' => $address['postal_code'],
       'Country' => strtolower($address['country']),
-      'CustomerRef' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_REF : $CustomerRef,
+      'CustomerRef' => $CustomerRef,
       'Email' => $mail,
       'Fax' => '',
       'Phone' => '',
@@ -117,7 +117,7 @@ class eway_token extends eway_base {
    * data.
    */
   function create_customer ($CustomerRef, $customer_data) {
-    $customer_data['CustomerRef'] = $CustomerRef;
+    $customer_data['CustomerRef'] = $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_REF : $CustomerRef;
     $response = $this->soap_call('CreateCustomer', $customer_data);
 
     if ($response['txStatus']) {
@@ -168,12 +168,25 @@ class eway_token extends eway_base {
       watchdog('commerce_payment_eway', 'SOAP Call (%operation) request: %request, response: %response @test_mode_msg', array('%operation' => $operation, '%request' => var_export($params, TRUE), '%response' => var_export($result, TRUE), '@test_mode_msg' => $test_mode_msg));
     }
 
-    if (isset ($result['faultcode'])) {
-      $result['txReturnNo'] = $result['faultcode'];
-      $ewayresult['txReturnDescription'] = $result['faultstring'];
+    if (!$result) {
+      $response = false;
     }
-    $result['txStatus'] = !isset ($result['faultcode']);
-    return $result;
+    elseif (isset ($result['faultcode'])) {
+      $response = array (
+        'txStatus' => 'false',
+        'txReturnNo' => (string) $result['faultcode'],
+        'txReturnDescription' => (string) $result['faultstring'],
+      );
+    }
+    else {
+      $response = array (
+        'txStatus' => 'true',
+        'txReturnNo' => 0,
+        'txReturnDescription' => (string) $result['ewayResponse']['ewayTrxnError'],
+        'txTransactionNumber' => (string) $result['ewayResponse']['ewayTrxnNumber'],
+      );
+    }
+    return $response;
   }
 
 }
