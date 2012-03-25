@@ -289,7 +289,7 @@ function _commerce_payment_eway_save_transaction ($settings, $order, $charge, $r
     $transaction->remote_id = (string) isset ($return_info['eway_response']['txTransactionNumber']) ? $return_info['eway_response']['txTransactionNumber'] : '';
     $transaction->amount = $charge['amount'];
     $transaction->currency_code = $charge['currency_code'];
-    $transaction->remote_status = $return_info['eway_response']['txStatus'];
+    $transaction->remote_status = $return_info['eway_response']['txReturnNo'];
     $transaction->payload = print_r ($return_info, true);
     switch ($return_info['eway_response']['txStatus']) {
       case 'false':
