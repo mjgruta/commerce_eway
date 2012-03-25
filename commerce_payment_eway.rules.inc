@@ -68,18 +68,23 @@ function commerce_payment_eway_process_payment ($order) {
     // which is ridiculously long anyway.
     $description = substr($description, 0, 10000);
 
-    $settings = $order->payment_methods['commerce_payment_eway|commerce_payment_commerce_payment_eway']['settings'];
-    $charge = array (
-     'amount' => $order->commerce_order_total[LANGUAGE_NONE][0]['amount'],
-     'currency_code' => $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'],
-    );
-    module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_base');
-    module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_token');
-    $processor = new eway_token ($settings);
-    $processor->process_payment ($ManagedCustomerId, $charge['amount'], $order->order_id, $description);
-    $transaction = _commerce_payment_eway_save_transaction ($settings, $order, $charge, $processor->return_info);
-    $ok = $transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS;
-    if ($ok)
-      commerce_checkout_complete ($order);
+    if (isset ($order->payment_methods)) {
+      $settings = $order->payment_methods['commerce_payment_eway|commerce_payment_commerce_payment_eway']['settings'];
+      $charge = array (
+       'amount' => $order->commerce_order_total[LANGUAGE_NONE][0]['amount'],
+       'currency_code' => $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'],
+      );
+      module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_base');
+      module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_token');
+      $processor = new eway_token ($settings);
+      $processor->process_payment ($ManagedCustomerId, $charge['amount'], $order->order_id, $description);
+      $transaction = _commerce_payment_eway_save_transaction ($settings, $order, $charge, $processor->return_info);
+      $ok = $transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS;
+      if ($ok)
+        commerce_checkout_complete ($order);
+    }
+    else {
+      watchdog ('commerce_payment_eway', 'No payment methods have been setup.', array (), WATCHDOG_ERROR);
+    }
   }
 }
