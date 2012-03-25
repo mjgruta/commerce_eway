@@ -14,7 +14,7 @@ abstract class eway_xml_common extends eway_base {
 
     $this->xml_data = array(
       'ewayCustomerID' => _commerce_payment_eway_get_data('customer_id', $settings),
-      'ewayTotalAmount' => intval ($charge['amount'] * 100),
+      'ewayTotalAmount' => intval($charge['amount']),
       'ewayCustomerFirstName' => $address['first_name'],
       'ewayCustomerLastName' => $address['last_name'],
       'ewayCustomerEmail' => $mail,

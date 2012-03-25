@@ -25,7 +25,7 @@ class eway_token extends eway_base {
       unset ($this->cvn_processor);
       $this->xml_data = array(
         'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
-        'amount' => intval ($charge['amount'] * 100),
+        'amount' => intval($charge['amount']),
         'invoiceReference' => $order_id,
         'invoiceDescription' => $description,
       );
@@ -139,7 +139,7 @@ class eway_token extends eway_base {
   function process_payment ($ManagedCustomerId, $amount, $invoice_reference, $description) {
     $this->xml_data = array(
       'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
-      'amount' => intval ($amount * 100),
+      'amount' => intval($amount),
       'invoiceReference' => $invoice_reference,
       'invoiceDescription' => $description,
       );
