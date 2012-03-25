@@ -31,6 +31,10 @@ define('COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_TEST', 2);
 define('COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID', '9876543211000');
 define('COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_REF', 'Test 123');
 
+/**
+* Include commerce_cardonfile integration functions
+*/
+module_load_include('inc', 'commerce_payment_eway', 'includes/commerce_payment_eway.cardonfile');
 
 /**
  * Implements hook_commerce_payment_method_info().
@@ -43,6 +47,12 @@ function commerce_payment_eway_commerce_payment_method_info() {
       'display_title' => t('Credit card'),
       'description' => t('Provides integration with the eWAY payment gateway.'),
       'active' => TRUE,
+      //commerce_cardonfile integration callbacks
+      'cardonfile' => array(
+        'charge callback' => 'commerce_payment_eway_cardonfile_charge_callback',
+        'update callback' => 'commerce_payment_eway_cardonfile_update_callback',
+        'delete callback' => 'commerce_payment_eway_cardonfile_delete_callback',
+      ),
     ),
   );
 }
@@ -258,6 +268,35 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
   module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_' . $mode);
   $class_name = 'eway_' . $mode;
   $processor = new $class_name($settings);
+
+  //Order is NOT anonymous and token mode enabled - try and save card details using the commerce_cardonfile module
+  //Anonymous users are taken care of by rules.inc
+  if ($mode == 'token' && module_exists('commerce_cardonfile') && $order->uid) {
+
+    //look for any existing card data - We just grab a single line here because we only support single card storage in eWay (currently!)
+    $card_data = current(commerce_cardonfile_data_load_multiple($order->uid));
+    if ($card_data['remote_id']) {
+
+      //save this latest data back to cardonfile
+      commerce_payment_eway_cardonfile_save($oder->uid, $card_data['remote_id'], $credit_card);
+
+      //update in eway if this is a new card
+      if ($pane_values['cardonfile'] == 'new') {
+        $update_fields = array(
+          'CCNameOnCard' => $address['name_line'],
+          'CCExpiryMonth' => sprintf('%02d', $credit_card['exp_month']),
+          'CCExpiryYear' => substr($credit_card['exp_year'], -2),
+          'CCNumber' => $credit_card['number']
+        );
+
+        if ($processor->update_customer($card_data['remote_id'], $update_fields) == 'true') {
+          //make sure that eway charges against this card in the next step
+          db_merge('commerce_eway_token')->key(array('uid' => $order->uid))->fields(array('eway_id' => $card_data['remote_id']));
+        }
+      }
+    }
+  }
+
   $processor->charge ($settings, $description, $charge, $credit_card, $address, $order->order_id, $order->uid, $order->mail);
   if (isset ($processor->unsaved_customer_data)) {
     // Keep track of unsaved customer data as we can only save this when the

@@ -138,6 +138,20 @@ class eway_token extends eway_base {
     $this->last_response = $response;
     return $response['txStatus'];
   }
+  
+  /*
+   * update a user's details and credit card infomation in eway
+   * same field names as used in new_managed_customer
+   */
+  function update_customer($ManagedCustomerId, $customer_data) {    
+     $required_data = array(
+      'managedCustomerID' => $ManagedCustomerId,
+    );
+    $this->xml_data = array_merge($required_data, $customer_data);
+    $response = $this->soap_call('UpdateCustomer', $this->xml_data);
+    $this->last_response = $response;
+    return $response['txStatus'];
+  }
 
   /*
    * Token billing.

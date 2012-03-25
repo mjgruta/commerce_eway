@@ -51,6 +51,11 @@ function commerce_payment_eway_create_customer ($account) {
     $success = $processor->create_customer ($account->uid, $customer_data);
     unset ($_SESSION['eway_customer_data']);
     unset ($_SESSION['eway_settings']);
+    
+    //if eway is set to token mode, save a cardonfile record
+    if (_commerce_payment_eway_get_data('mode', $settings) == 'token' && module_exists('commerce_cardonfile')) {
+      commerce_payment_eway_cardonfile_save($account->uid, $processor->ManagedCustomerId, $customer_data);
+    }
   }
 }
 
