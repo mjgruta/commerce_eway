@@ -54,6 +54,11 @@ class eway_token extends eway_base {
         $response = $this->soap_call('ProcessPayment', $this->xml_data);
       else
         $response = $this->last_response;
+      $r = explode (',' , $response['txReturnDescription']);
+      $response['txReturnNo'] = $r[0];
+      $response['txReturnDescription'] = $r[1];
+      // Response codes derived here: http://www.eway.com.au/Developer/payment-code/transaction-results-response-codes.aspx
+      $response['txStatus'] = ($r[0] == 0 || $r[0] == 8 || $r[0] == 10 || $r[0] == 11 || $r[0] == 16) ? 'true' : 'false';
     }
     $this->return_info = array(
       'eway_response' => $response,
@@ -65,12 +70,13 @@ class eway_token extends eway_base {
    */
   protected function new_managed_customer ($settings, $credit_card, $address, $CustomerRef, $mail) {
     // We must supply a first and last name, else call will fail
-    $first_name = $address['first_name']? $address['first_name'] : substr ($address['name_line'], 0, strpos ($address['name_line'], ' '));
+    $first_name = $address['first_name'] ? $address['first_name'] : substr ($address['name_line'], 0, strpos ($address['name_line'], ' '));
     if (!$first_name)
       $first_name = $address['name_line'];
-    $last_name = $address['last_name']? $address['last_name'] : substr ($address['name_line'], strpos ($address['name_line'], ' ') + 1);
+    $last_name = $address['last_name'] ? $address['last_name'] : substr ($address['name_line'], strpos ($address['name_line'], ' ') + 1);
     if (!$last_name)
       $last_name = $address['name_line'];
+    $cc_name_on_card = $address['name_line'] ? $address['name_line'] : "$first_name $last_name";
     $this->xml_data = array(
       'Title' => 'Prof.', // TODO: Don't hard code this when there is a better way.
       'FirstName' => $first_name,
@@ -90,7 +96,7 @@ class eway_token extends eway_base {
       'Comments' => '',
       'URL' => '',
       'CCNumber' => _commerce_payment_eway_get_data('cc_number', $settings, $credit_card['number']),
-      'CCNameOnCard' => $address['name_line'],
+      'CCNameOnCard' => $cc_name_on_card,
       'CCExpiryMonth' => sprintf('%02d', $credit_card['exp_month']),
       'CCExpiryYear' => substr($credit_card['exp_year'], -2),
     );
@@ -120,7 +126,7 @@ class eway_token extends eway_base {
     $customer_data['CustomerRef'] = $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_REF : $CustomerRef;
     $response = $this->soap_call('CreateCustomer', $customer_data);
 
-    if ($response['txStatus']) {
+    if ($response['txStatus'] && isset ($response['CreateCustomerResult'])) {
       $this->ManagedCustomerId = $response['CreateCustomerResult'];
       db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
       $this->unsaved_customer_data = false;
