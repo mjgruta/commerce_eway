@@ -286,7 +286,7 @@ function _commerce_payment_eway_save_transaction ($settings, $order, $charge, $r
     // Prepare a transaction object to log the API response.
     $transaction = commerce_payment_transaction_new('commerce_payment_eway', $order->order_id);
     $transaction->instance_id = $instance_id;
-    $transaction->remote_id = (string) $return_info['eway_response']['txTransactionNumber'];
+    $transaction->remote_id = (string) isset ($return_info['eway_response']['txTransactionNumber']) ? $return_info['eway_response']['txTransactionNumber'] : '';
     $transaction->amount = $charge['amount'];
     $transaction->currency_code = $charge['currency_code'];
     $transaction->remote_status = $return_info['eway_response']['txStatus'];
