@@ -128,7 +128,11 @@ class eway_token extends eway_base {
 
     if ($response['txStatus'] && isset ($response['CreateCustomerResult'])) {
       $this->ManagedCustomerId = $response['CreateCustomerResult'];
-      db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
+      // Only insert record if we don't have it, eway can return same
+      // token in case it is the same user.
+      $uid = db_select ('commerce_eway_token', 't')->fields ('t', array ('uid'))->condition ('uid', $CustomerRef)->execute()->fetchField();
+      if (!$uid)
+        db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
       $this->unsaved_customer_data = false;
       if ($this->log_to_watchdog) {
         watchdog('commerce_payment_eway', 'User %uid setup for token billing', array('%uid' => $CustomerRef));
@@ -138,12 +142,12 @@ class eway_token extends eway_base {
     $this->last_response = $response;
     return $response['txStatus'];
   }
-  
+
   /*
    * update a user's details and credit card infomation in eway
    * same field names as used in new_managed_customer
    */
-  function update_customer($ManagedCustomerId, $customer_data) {    
+  function update_customer($ManagedCustomerId, $customer_data) {
      $required_data = array(
       'managedCustomerID' => $ManagedCustomerId,
     );
