@@ -11,7 +11,7 @@ abstract class eway_xml_common extends eway_base {
     $customer_address = $address['dependent_locality'] . ' ';
     $customer_address .= $address['locality'] . ' ';
     $customer_address .= $address['country'];
-
+    $cc_name_on_card = $address['name_line'] ? $address['name_line'] : ($address['first_name'] . ' ' . $address['last_name']);
     $this->xml_data = array(
       'ewayCustomerID' => _commerce_payment_eway_get_data('customer_id', $settings),
       'ewayTotalAmount' => intval($charge['amount']),
@@ -22,7 +22,7 @@ abstract class eway_xml_common extends eway_base {
       'ewayCustomerPostcode' => $address['postal_code'],
       'ewayCustomerInvoiceDescription' => $description,
       'ewayCustomerInvoiceRef' => $order_id,
-      'ewayCardHoldersName' => $address['name_line'],
+      'ewayCardHoldersName' => $cc_name_on_card,
       'ewayCardNumber' => _commerce_payment_eway_get_data('cc_number', $settings, $credit_card['number']),
       'ewayCardExpiryMonth' => $credit_card['exp_month'],
       'ewayCardExpiryYear' => $credit_card['exp_year'],
