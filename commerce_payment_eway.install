@@ -32,6 +32,18 @@ function commerce_payment_eway_requirements($phase) {
     $requirements['simplexml']['description'] = $t("Eway requires the SimpleXML library.");
   }
 
+  // Put a warning on the reports page if NuSOAP or Libraries are missing.
+  $nusoap = file_exists(_commerce_payment_eway_nusoap_path());
+  $requirements['nusoap']['title'] = $t('NuSOAP Library required for token payments.');
+  $requirements['nusoap']['value'] = $nusoap ? $t('Enabled') : $t('Disabled');
+  $requirements['nusoap']['severity'] = REQUIREMENT_OK;
+  $requirements['nusoap']['description'] = $t('eWAY Token payments requires the ' .
+    l('NuSOAP client', 'http://sourceforge.net/projects/nusoap/') . ' and ' .
+    l('Libraries.', 'http://drupal.org/project/libraries'));
+  if(!$nusoap) {
+    $requirements['nusoap']['severity'] = REQUIREMENT_WARNING;
+  }
+
   return $requirements;
 }
 
