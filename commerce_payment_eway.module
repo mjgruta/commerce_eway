@@ -277,9 +277,6 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
     $card_data = current(commerce_cardonfile_data_load_multiple($order->uid));
     if ($card_data['remote_id']) {
 
-      //save this latest data back to cardonfile
-      commerce_payment_eway_cardonfile_save($oder->uid, $card_data['remote_id'], $credit_card);
-
       //update in eway if this is a new card
       if ($pane_values['cardonfile'] == 'new') {
         $update_fields = array(
@@ -290,6 +287,9 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
         );
 
         if ($processor->update_customer($card_data['remote_id'], $update_fields) == 'true') {
+          //save this latest data back to cardonfile
+          commerce_payment_eway_cardonfile_save($order->uid, $card_data['remote_id'], $update_fields);
+
           //make sure that eway charges against this card in the next step
           db_merge('commerce_eway_token')->key(array('uid' => $order->uid))->fields(array('eway_id' => $card_data['remote_id']));
         }
