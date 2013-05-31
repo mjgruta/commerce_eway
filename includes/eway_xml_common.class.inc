@@ -8,7 +8,7 @@ abstract class eway_xml_common extends eway_base {
   function prepare_request ($settings, $description, $charge, $credit_card, $address, $order_id, $uid, $mail) {
     // Concatenate the customer address to send to the payment gateway.
     $customer_address = $address['thoroughfare'] . ' ';
-    $customer_address = $address['dependent_locality'] . ' ';
+    $customer_address .= $address['dependent_locality'] . ' ';
     $customer_address .= $address['locality'] . ' ';
     $customer_address .= $address['country'];
     $cc_name_on_card = $address['name_line'] ? $address['name_line'] : ($address['first_name'] . ' ' . $address['last_name']);
