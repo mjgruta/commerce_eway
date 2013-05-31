@@ -192,6 +192,7 @@ class eway_token extends eway_base {
       $result = $client->call($operation, $params, $namespace, '', $header);
     }
     else {
+      watchdog('commerce_payment_eway', t('Please ensure that both Libraries and NuSOAP are installed.'));
       $result = FALSE;
     }
 
