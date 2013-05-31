@@ -131,9 +131,11 @@ class eway_token extends eway_base {
       // Only insert record if we don't have it, eway can return same
       // token in case it is the same user.
       $uid = db_select ('commerce_eway_token', 't')->fields ('t', array ('uid'))->condition ('uid', $CustomerRef)->execute()->fetchField();
-      if (!$uid)
+      if (!$uid) {
         db_insert ('commerce_eway_token')->fields (array ('uid' => $CustomerRef, 'eway_id' => $this->ManagedCustomerId))->execute();
-      $this->unsaved_customer_data = false;
+      }
+      // Save the customer data so the cardonfile can be created if needed.
+      $this->unsaved_customer_data = $customer_data;
       if ($this->log_to_watchdog) {
         watchdog('commerce_payment_eway', 'User %uid setup for token billing', array('%uid' => $CustomerRef));
       }
