@@ -5,6 +5,19 @@
  */
 
 /**
+ * Implements hook_update().
+ */
+function commerce_payment_eway_update_7001() {
+
+  // Set the watchdog status back to a more sensible default.
+  $payment = rules_config_load('commerce_payment_commerce_payment_eway');
+  foreach($payment->actions() as $action) {
+    $action->settings['payment_method']['settings']['eway_watchdog']['watchdog_status'] = COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_TEST;
+    $action->save();
+  }
+}
+
+/**
  * Implements hook_requirements().
  */
 function commerce_payment_eway_requirements($phase) {

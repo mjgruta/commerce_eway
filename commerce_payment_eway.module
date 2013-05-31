@@ -80,7 +80,7 @@ function commerce_payment_eway_settings_form($settings = NULL) {
       'test_approve_anyway' => COMMERCE_PAYMENT_EWAY_TEST_APPROVE_ANYWAY_DEFAULT,
     ),
     'eway_watchdog' => array (
-      'watchdog_status' => COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_ALL,
+      'watchdog_status' => COMMERCE_PAYMENT_EWAY_WATCHDOG_STATUS_TEST,
     ),
   );
 
