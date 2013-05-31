@@ -86,6 +86,10 @@ abstract class eway_xml_common extends eway_base {
         'eway_response' => $eway_response,
       );
 
+      if ($this->log_to_watchdog) {
+        watchdog('commerce_payment_eway', 'XML request: %request, response: %response', array('%request' => var_export($xml, TRUE), '%response' => var_export($eway_response, TRUE)));
+      }
+      
       return $return_array;
     }
   }
