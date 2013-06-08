@@ -297,7 +297,7 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
     }
   }
 
-  $processor->charge ($settings, $description, $charge, $credit_card, $address, $order->order_id, $order->uid, $order->mail);
+  $processor->charge ($settings, $description, $charge, $credit_card, $address, $order->order_number, $order->uid, $order->mail);
   if (isset ($processor->unsaved_customer_data)) {
     // Keep track of unsaved customer data as we can only save this when the
     //account is created. Obviously this means we store the credit card
