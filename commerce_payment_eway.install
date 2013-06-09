@@ -46,6 +46,7 @@ function commerce_payment_eway_requirements($phase) {
   }
 
   // Put a warning on the reports page if NuSOAP or Libraries are missing.
+  module_load_include('module', 'commerce_payment_eway', 'commerce_payment_eway');
   $nusoap = file_exists(_commerce_payment_eway_nusoap_path());
   $requirements['nusoap']['title'] = $t('NuSOAP Library required for token payments.');
   $requirements['nusoap']['value'] = $nusoap ? $t('Enabled') : $t('Disabled');
