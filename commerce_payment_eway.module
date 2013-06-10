@@ -311,7 +311,7 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
 
   $transaction = _commerce_payment_eway_save_transaction ($settings, $order, $charge, $processor->return_info, $payment_method['instance_id']);
 
-  return $transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS;
+  return isset($transaction->status) && $transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS;
 }
 
 

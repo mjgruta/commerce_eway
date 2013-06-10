@@ -49,26 +49,21 @@ abstract class eway_xml_common extends eway_base {
    * Actually send the request to eWAY.
    */
   function do_process_request($xml, $url) {
-    $curl_connection = curl_init();
-    curl_setopt($curl_connection, CURLOPT_URL, $url);
-    curl_setopt($curl_connection, CURLOPT_VERBOSE, 1);
-    curl_setopt($curl_connection, CURLOPT_POST, 1);
-    curl_setopt($curl_connection, CURLOPT_POSTFIELDS, $xml);
-    curl_setopt($curl_connection, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($curl_connection, CURLOPT_SSL_VERIFYPEER, 0);
-    curl_setopt($curl_connection, CURLOPT_NOPROGRESS, 1);
-    curl_setopt($curl_connection, CURLOPT_FOLLOWLOCATION, 0);
+
+    $response = drupal_http_request($url, array(
+      'max_redirects' => 0,
+      'method' => 'POST',
+      'data' => $xml,
+    ));
 
     // Send the data out over the wire
-    $data = curl_exec($curl_connection);
-    if (curl_errno($curl_connection)) {
-      drupal_set_message(t('CURL Error') . ': ' . curl_errno($curl_connection) . '<br />' . curl_error($curl_connection));
+    if (isset($response->code) && $response->code !== '200') {
+      drupal_set_message(t('eWay Payment API Request failed: %error', array('%error' => $response->error)), 'error');
+      watchdog('Commerce eWay', 'eWay Payment API Request failed: %error', array('%error' => $response->error), WATCHDOG_ERROR, NULL)
       return FALSE;
     }
     else {
-      curl_close($curl_connection);
-
-      $xtr = simplexml_load_string($data);
+      $xtr = simplexml_load_string($response->data);
       $response_details = explode(',', $xtr->ewayTrxnError);
 
       $eway_response['txReturnNo'] = $response_details[0];
@@ -89,7 +84,7 @@ abstract class eway_xml_common extends eway_base {
       if ($this->log_to_watchdog) {
         watchdog('commerce_payment_eway', 'XML request: %request, response: %response', array('%request' => var_export($xml, TRUE), '%response' => var_export($eway_response, TRUE)));
       }
-      
+
       return $return_array;
     }
   }
