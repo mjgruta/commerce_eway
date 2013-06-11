@@ -164,7 +164,7 @@ class eway_token extends eway_base {
    */
   function process_payment ($ManagedCustomerId, $amount, $invoice_reference, $description) {
     $this->xml_data = array(
-      'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $this->ManagedCustomerId,
+      'managedCustomerID' => $this->testing ? COMMERCE_PAYMENT_EWAY_TOKEN_TEST_CUSTOMER_ID : $ManagedCustomerId,
       'amount' => intval($amount),
       'invoiceReference' => $invoice_reference,
       'invoiceDescription' => $description,
