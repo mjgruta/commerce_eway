@@ -59,7 +59,7 @@ abstract class eway_xml_common extends eway_base {
     // Send the data out over the wire
     if (isset($response->code) && $response->code !== '200') {
       drupal_set_message(t('eWay Payment API Request failed: %error', array('%error' => $response->error)), 'error');
-      watchdog('Commerce eWay', 'eWay Payment API Request failed: %error', array('%error' => $response->error), WATCHDOG_ERROR, NULL);
+      watchdog('commerce_paymeny_eway', 'eWay Payment API Request failed: %error', array('%error' => $response->error), WATCHDOG_ERROR, NULL);
       return FALSE;
     }
     else {
