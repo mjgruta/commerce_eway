@@ -40,7 +40,7 @@ function commerce_payment_eway_rules_action_info() {
  * When token billing is used, we need to register new customers.
  */
 function commerce_payment_eway_create_customer ($account) {
-  if (isset ($_SESSION['eway_customer_data'])) {
+  if (isset($_SESSION['eway_customer_data']) && $account->uid) {
     $customer_data = $_SESSION['eway_customer_data'];
     $settings = $_SESSION['eway_settings'];
     $testing = $customer_data['CCNumber'] == COMMERCE_PAYMENT_EWAY_TEST_CCNUMBER;
