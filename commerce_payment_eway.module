@@ -266,6 +266,7 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
   module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_base');
   module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_xml_common');
   module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_' . $mode);
+
   $class_name = 'eway_' . $mode;
   $processor = new $class_name($settings);
 
@@ -297,6 +298,11 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
     }
   }
 
+  if (isset($charge['amount']) && $charge['amount'] <= 0) {
+    $charge['amount'] = $order->commerce_order_total[LANGUAGE_NONE][0]['amount'];
+    $charge['currency_code'] = $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'];
+  }
+
   $processor->charge ($settings, $description, $charge, $credit_card, $address, $order->order_number, $order->uid, $order->mail);
   if (isset ($processor->unsaved_customer_data)) {
     // Keep track of unsaved customer data as we can only save this when the
@@ -321,7 +327,9 @@ function commerce_payment_eway_submit_form_submit($payment_method, $pane_form, $
 function _commerce_payment_eway_save_transaction ($settings, $order, $charge, $return_info, $instance_id = 0) {
   // $return_info might be FALSE if request() failed.
   $transaction = FALSE;
+
   if (!empty($return_info) && array_key_exists('txStatus', $return_info['eway_response'])) {
+    $comment = '';
     // Prepare a transaction object to log the API response.
     $transaction = commerce_payment_transaction_new('commerce_payment_eway', $order->order_id);
     $transaction->instance_id = $instance_id;
@@ -330,11 +338,13 @@ function _commerce_payment_eway_save_transaction ($settings, $order, $charge, $r
     $transaction->currency_code = $charge['currency_code'];
     $transaction->remote_status = $return_info['eway_response']['txReturnNo'];
     $transaction->payload = print_r ($return_info, true);
+    $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
+
     switch ($return_info['eway_response']['txStatus']) {
       case 'false':
         $comment = t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'];
         if ($settings['show_fail_message']) {
-          $message = t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnNo'] . ': ' . $return_info['eway_response']['txReturnDescription'];
+          $message = t('Credit card payment declined') . ': ' . $return_info['eway_response']['txReturnDescription'];
           drupal_set_message($message, 'error');
         }
         $eway_testing = commerce_payment_eway_in_testing_mode($settings);
@@ -348,7 +358,9 @@ function _commerce_payment_eway_save_transaction ($settings, $order, $charge, $r
         $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
         break;
     }
+
     $transaction->message = $comment;
+
     commerce_payment_transaction_save($transaction);
   }
   return $transaction;

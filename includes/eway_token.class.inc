@@ -54,12 +54,13 @@ class eway_token extends eway_base {
         $response = $this->soap_call('ProcessPayment', $this->xml_data);
       else
         $response = $this->last_response;
-      $r = explode (',' , $response['txReturnDescription']);
-      $response['txReturnNo'] = $r[0];
-      $response['txReturnDescription'] = $r[1];
+      //$r = explode (',' , $response['txReturnDescription']);
+      //$response['txReturnNo'] = $r[0];
+      //$response['txReturnDescription'] = isset($r[1]) ? $r[1] : '';
       // Response codes derived here: http://www.eway.com.au/Developer/payment-code/transaction-results-response-codes.aspx
-      $response['txStatus'] = ($r[0] == 0 || $r[0] == 8 || $r[0] == 10 || $r[0] == 11 || $r[0] == 16) ? 'true' : 'false';
+      //$response['txStatus'] = ($r[0] == 0 || $r[0] == 8 || $r[0] == 10 || $r[0] == 11 || $r[0] == 16) ? 'true' : 'false';
     }
+
     $this->return_info = array(
       'eway_response' => $response,
     );
@@ -150,7 +151,7 @@ class eway_token extends eway_base {
    * same field names as used in new_managed_customer
    */
   function update_customer($ManagedCustomerId, $customer_data) {
-     $required_data = array(
+    $required_data = array(
       'managedCustomerID' => $ManagedCustomerId,
     );
     $this->xml_data = array_merge($required_data, $customer_data);
@@ -192,6 +193,7 @@ class eway_token extends eway_base {
       $client = new nusoap_client($endpoint, TRUE);
       $client->response_timeout = 50;
       $result = $client->call($operation, $params, $namespace, '', $header);
+
     }
     else {
       watchdog('commerce_payment_eway', t('Please ensure that both Libraries and NuSOAP are installed.'));
@@ -237,6 +239,7 @@ class eway_token extends eway_base {
         'txTransactionNumber' => '',
       );
     }
+
     return $response;
   }
 

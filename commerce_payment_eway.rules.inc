@@ -79,11 +79,13 @@ function commerce_payment_eway_process_payment ($order) {
        'amount' => $order->commerce_order_total[LANGUAGE_NONE][0]['amount'],
        'currency_code' => $order->commerce_order_total[LANGUAGE_NONE][0]['currency_code'],
       );
+
       module_load_include ('class.inc', 'commerce_payment_eway','includes/eway_base');
       module_load_include ('class.inc', 'commerce_payment_eway', 'includes/eway_token');
       $processor = new eway_token ($settings);
       $processor->process_payment ($ManagedCustomerId, $charge['amount'], $order->order_id, $description);
       $transaction = _commerce_payment_eway_save_transaction ($settings, $order, $charge, $processor->return_info);
+
       $ok = $transaction->status == COMMERCE_PAYMENT_STATUS_SUCCESS;
       if ($ok)
         commerce_checkout_complete ($order);
